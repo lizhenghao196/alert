@@ -1,0 +1,399 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 主题变量 ───────────────────────────────────────────────────────────
+   色值用「空格分隔的 RGB 通道」而不是 hex，这样 Tailwind 的 <alpha-value>
+   占位符才能生成 bg-abnormal/10 这类透明度修饰符，并且跟着主题走。
+   ──────────────────────────────────────────────────────────────────── */
+:root {
+  --c-canvas: 247 248 250;
+  --c-surface: 247 248 250;
+  --c-panel: 255 255 255;
+  --c-raise: 238 241 246;
+
+  --c-line: 229 232 238;
+  --c-line-2: 212 216 224;
+
+  --c-fg: 28 34 48;
+  --c-fg-2: 90 100 120;
+  --c-fg-3: 107 115 134;
+
+  --c-accent: 47 111 237;
+  --c-on-accent: 255 255 255;
+  --c-abnormal: 215 91 80;
+  --c-normal: 43 150 121;
+  --c-warn: 183 137 69;
+
+  --c-scrim: 12 18 26;
+  --scrim-alpha: 0.5;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.07);
+  --shadow-lift: 0 4px 12px rgb(16 24 40 / 0.08), 0 12px 28px rgb(16 24 40 / 0.07);
+  --shadow-pop: 0 24px 80px rgb(0 0 0 / 0.25);
+
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  --c-canvas: 11 12 14;
+  --c-surface: 18 19 23;
+  --c-panel: 24 25 30;
+  --c-raise: 32 34 40;
+
+  --c-line: 36 38 43;
+  --c-line-2: 51 54 62;
+
+  --c-fg: 237 238 242;
+  --c-fg-2: 158 163 176;
+  --c-fg-3: 126 132 148;
+
+  --c-accent: 124 140 255;
+  --c-on-accent: 12 14 20;
+  --c-abnormal: 255 95 86;
+  --c-normal: 47 211 126;
+  --c-warn: 214 168 96;
+
+  --c-scrim: 0 0 0;
+  --scrim-alpha: 0.62;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 4px 14px rgb(0 0 0 / 0.55), 0 12px 32px rgb(0 0 0 / 0.45);
+  --shadow-pop: 0 24px 80px rgb(0 0 0 / 0.7);
+
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: rgb(var(--c-canvas));
+  color: rgb(var(--c-fg));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(var(--c-accent) / 0.24);
+}
+
+/* 只在切换主题的那一瞬间挂上，避免平时每个元素都背着颜色过渡开销 */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition:
+    background-color 0.32s ease,
+    border-color 0.32s ease,
+    color 0.32s ease,
+    fill 0.32s ease,
+    stroke 0.32s ease,
+    box-shadow 0.32s ease !important;
+  transition-delay: 0s !important;
+}
+
+/*
+  上面那条是 !important 的，会盖掉主题按钮图标自己的 transform/opacity 过渡，
+  让图标在切换时「啪」地跳过去。这里用更高的选择器权重把图标要的属性还回去。
+*/
+html.theme-switching .theme-icon {
+  transition:
+    opacity 0.3s ease-out,
+    transform 0.3s ease-out,
+    color 0.32s ease,
+    stroke 0.32s ease !important;
+  transition-delay: 0s !important;
+}
+
+/* ── 告警卡片网格 ───────────────────────────────────────────────────────
+   宽屏上让卡片变大而不是变多。写在 CSS 里而不是 Tailwind 任意值，
+   是因为 minmax() 里再套 clamp() 的逗号容易被任意值解析器切断。
+   ──────────────────────────────────────────────────────────────────── */
+.alert-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(300px, 24vw, 420px), 1fr));
+  align-items: start;
+}
+
+/*
+  异常卡片那层极淡的红底走 CSS 而不是 bg-abnormal/[0.04]：两个背景色工具类
+  同时出现时谁赢取决于 Tailwind 的排序而不是 class 书写顺序，不可靠。
+  这里把半透明色叠在不透明的面板色上，结果确定。
+*/
+.alert-card {
+  background: rgb(var(--c-panel));
+}
+
+.alert-card.is-abnormal {
+  background:
+    linear-gradient(rgb(var(--c-abnormal) / 0.05), rgb(var(--c-abnormal) / 0.05)),
+    rgb(var(--c-panel));
+}
+
+/* 骨架屏的渐变写这里，避免 Tailwind 任意值里同时出现逗号和斜杠 */
+.skeleton-line {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--c-fg) / 0.05),
+    rgb(var(--c-fg) / 0.11),
+    rgb(var(--c-fg) / 0.05)
+  );
+  background-size: 200% 100%;
+}
+
+/* ── 数据刷新扫光 ─────────────────────────────────────────────────────── */
+@keyframes refreshSweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(260%);
+    opacity: 0;
+  }
+}
+
+.refresh-sweep-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgb(var(--c-accent)), transparent);
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.refresh-sweep-line.run {
+  animation: refreshSweep 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── 报告弹窗开合 ─────────────────────────────────────────────────────── */
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dialogOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scrimOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.report-dialog::backdrop {
+  background: rgb(var(--c-scrim) / var(--scrim-alpha));
+}
+
+.report-dialog[open] {
+  animation: dialogIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.report-dialog[open]::backdrop {
+  animation: scrimIn 0.22s ease;
+}
+
+.report-dialog.closing {
+  animation: dialogOut 0.18s ease forwards;
+}
+
+.report-dialog.closing::backdrop {
+  animation: scrimOut 0.18s ease forwards;
+}
+
+/* ── 报告 markdown ──────────────────────────────────────────────────────
+   自建而非引入 @tailwindcss/typography：报告正文只有标题/列表/代码/表格
+   这几类结构，手写一遍能完全控制暗色表现，也省一个依赖。
+   ──────────────────────────────────────────────────────────────────── */
+.report-md {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: rgb(var(--c-fg-2));
+}
+
+.report-md > :first-child {
+  margin-top: 0;
+}
+
+.report-md > :last-child {
+  margin-bottom: 0;
+}
+
+.report-md h1,
+.report-md h2,
+.report-md h3,
+.report-md h4 {
+  margin: 1.6em 0 0.6em;
+  color: rgb(var(--c-fg));
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.report-md h1 {
+  font-size: 1.45em;
+}
+
+.report-md h2 {
+  font-size: 1.25em;
+}
+
+.report-md h3 {
+  font-size: 1.08em;
+}
+
+.report-md h4 {
+  font-size: 1em;
+}
+
+.report-md h2,
+.report-md h3 {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid rgb(var(--c-line));
+}
+
+.report-md p {
+  margin: 0.85em 0;
+}
+
+.report-md strong {
+  color: rgb(var(--c-fg));
+  font-weight: 600;
+}
+
+.report-md a {
+  color: rgb(var(--c-accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.report-md ul,
+.report-md ol {
+  margin: 0.85em 0;
+  padding-left: 1.5em;
+}
+
+.report-md ul {
+  list-style: disc;
+}
+
+.report-md ol {
+  list-style: decimal;
+}
+
+.report-md li {
+  margin: 0.35em 0;
+}
+
+.report-md li::marker {
+  color: rgb(var(--c-fg-3));
+}
+
+.report-md code {
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  background: rgb(var(--c-raise));
+  color: rgb(var(--c-fg));
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.report-md pre {
+  margin: 1em 0;
+  padding: 0.9em 1em;
+  overflow-x: auto;
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 8px;
+  background: rgb(var(--c-surface));
+}
+
+.report-md pre code {
+  padding: 0;
+  background: none;
+  font-size: 0.85em;
+}
+
+.report-md blockquote {
+  margin: 1em 0;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 3px solid rgb(var(--c-line-2));
+}
+
+.report-md hr {
+  margin: 1.6em 0;
+  border: 0;
+  border-top: 1px solid rgb(var(--c-line));
+}
+
+.report-md table {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.report-md th,
+.report-md td {
+  padding: 0.5em 0.7em;
+  border: 1px solid rgb(var(--c-line));
+  text-align: left;
+}
+
+.report-md th {
+  background: rgb(var(--c-surface));
+  color: rgb(var(--c-fg));
+  font-weight: 600;
+}
+
+/* ── 无障碍：尊重系统的「减弱动态效果」 ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

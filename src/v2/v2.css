@@ -1,0 +1,527 @@
+/* ─────────────────────────────────────────────────────────────────────
+   v2「值班终端」
+
+   令牌用 --t-* 命名，与 v1 的 --c-* 完全隔离。定义在 :root 而不是
+   .v2-root 下的原因：浮层是 portal 到 body 的，挂在 .v2-root 外面，
+   令牌必须能在那一层读到。v1 页面也会算一遍这些值，但没有元素引用它们。
+   ───────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* 浅色：工程图纸。
+     底色与整套中性色跟模式一（v4 的 --c-canvas / --c-line / --c-fg 系列）
+     完全对齐——两版并排时不该像两块不同的纸。原来的暖米色（251 250 247 底
+     + 米色发丝线 + 暖近黑字）单看舒服，跟 v4 摆在一起就露馅，所以这里把
+     底/条纹/发丝线/hover/字一整套换成冷灰，而不是只换一个背景——只换背景
+     会留下米色发丝线压在冷灰上，反而脏。
+     保留的是 v2 自己的三种语义色（琥珀 / 绿 / 红），那是它的身份，不是背景。 */
+  --t-bg: 247 248 250;
+  --t-bg-alt: 241 243 248;
+  --t-rule: 226 229 236;
+  --t-rule-2: 208 213 222;
+  --t-fg: 28 34 48;
+  --t-fg-dim: 90 100 120;
+  /* 10px 的表头/标签也算正文级文本，AA 要 4.5:1。比 v4 的 --c-fg-3
+     （107 115 134，只有 4.47:1）再深一点，正好压过线。 */
+  --t-fg-mute: 100 108 126;
+  --t-hover: 237 240 245;
+  --t-amber: 140 97 16;
+  --t-ok: 26 116 72;
+  --t-alert: 170 40 28;
+  /* 浮层专用的一层投影。v2 整体是平的，只有真的浮在内容之上时才用。
+     跟 v4 一样用冷色投影，别在冷底上叠一层暖阴影。 */
+  --t-elev: 0 10px 26px rgb(16 24 40 / 0.14);
+}
+
+html[data-theme='dark'] {
+  /* 深色：磷光终端。底色同样对齐 v4 的深色 canvas，字与线跟着走 */
+  --t-bg: 11 12 14;
+  --t-bg-alt: 18 19 23;
+  --t-rule: 36 38 43;
+  --t-rule-2: 51 54 62;
+  --t-fg: 237 238 242;
+  --t-fg-dim: 158 163 176;
+  /* 同上：比 v4 的 --c-fg-3 略亮，保证 10px 标签在这块底上够 4.5:1 */
+  --t-fg-mute: 132 138 154;
+  --t-hover: 32 34 40;
+  --t-amber: 224 163 46;
+  --t-ok: 79 180 119;
+  --t-alert: 228 86 72;
+  --t-elev: 0 14px 34px rgb(0 0 0 / 0.6);
+}
+
+.v2-root {
+  --t-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --t-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* 48px → 56px：masthead 里现在要放 40px 的计数方框，上下各留 8px。
+     贴顶的表头 sticky 偏移用的也是这个变量，改一处两边一起动。 */
+  --t-masthead-h: 3.5rem;
+
+  min-height: 100dvh;
+  background: rgb(var(--t-bg));
+  color: rgb(var(--t-fg));
+  font-family: var(--t-sans);
+}
+
+/*
+  形状一致性锁定：全直角。终端里没有圆角这个东西。
+
+  必须带 !important。这条和 Tailwind 的 rounded-* 工具类权重相同，而工具类在
+  打包产物里排在更后面（实测字节 18051 对 572），不带 !important 的话锁不住，
+  注释里承诺的「钉死」是假的。
+
+  例外：.v4-header 及其整棵子树。模式二的顶部栏已经改成共用模式一那份
+  （AppHeader），它带着圆角卡片与圆形图标按钮；不排掉的话会被这条规则压平成
+  直角，跟模式一对不上。:not() 里可以写复合选择器（Chrome 88+ 支持），
+  `.v4-header *` 即「在 .v4-header 里面」。
+*/
+.v2-root,
+.v2-root *:not(.v4-header):not(.v4-header *),
+.v2-root *::before,
+.v2-root *::after {
+  border-radius: 0 !important;
+}
+
+.v2-root ::selection {
+  background: rgb(var(--t-amber) / 0.28);
+}
+
+.v2-root :focus-visible {
+  outline: 1px solid rgb(var(--t-amber));
+  outline-offset: 2px;
+}
+
+/* ── 排版基元 ───────────────────────────────────────────────────────── */
+.v2-mono {
+  font-family: var(--t-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 小号大写的功能标签。只用在表头和 KPI 标签这类真有其事的地方，
+   不是装饰性的 eyebrow。 */
+.v2-label {
+  font-family: var(--t-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--t-fg-mute));
+}
+
+/* ── Masthead ──────────────────────────────────────────────────────── */
+.v2-masthead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--t-masthead-h);
+  border-bottom: 1px solid rgb(var(--t-rule-2));
+  background: rgb(var(--t-bg));
+}
+
+/* ── masthead 里的计数（V2KpiStrip）──────────────────────────────────
+   计数条原来是独立一行（58px 高，上下各 9px 内边距），现在整组搬进 masthead
+   同一行。外观照旧：一格一个 40px 方框，左标签右数字，无圆角（v2 全直角）。
+
+   选中态也是 v2 自己的那一套：琥珀描边 + 琥珀淡底（见 .v2-chip）。
+   它跟 v4 的「描边 + 抬起底色」是两套语言，别去统一。
+
+   为了容下 40px 的方框，masthead 从 48px 长到 56px（改的是 --t-masthead-h
+   这个变量，贴顶表头用的也是它，两边自动对齐）。
+   ──────────────────────────────────────────────────────────────────── */
+.v2-kpi {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  /* 扫光要裁在这里。masthead 自己不能加 overflow: hidden，
+     否则会把条件浮层 .v2-popover 一起剪掉。 */
+  overflow: hidden;
+}
+
+.v2-kpi-cell {
+  display: inline-flex;
+  min-width: 84px;
+  height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid transparent;
+  padding: 0 11px;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s linear,
+    border-color 0.12s linear;
+}
+
+.v2-kpi-cell:hover {
+  border-color: rgb(var(--t-rule));
+  background: rgb(var(--t-hover));
+}
+
+.v2-kpi-cell[aria-pressed='true'],
+.v2-kpi-cell[aria-pressed='true']:hover {
+  border-color: rgb(var(--t-amber));
+  background: rgb(var(--t-amber) / 0.08);
+}
+
+.v2-kpi-num {
+  font-family: var(--t-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* 窄屏让位：先收时间戳，再收副标题，最后收状态文字（都还在，只是不上屏） */
+@media (max-width: 1200px) {
+  .v2-updated {
+    display: none;
+  }
+}
+
+@media (max-width: 1040px) {
+  .v2-masthead-subtitle {
+    display: none;
+  }
+}
+
+@media (max-width: 880px) {
+  /* 必须带 !important：这个 span 上还有 Tailwind 的 flex 工具类，
+     两者权重相同而工具类在产物里排得更后，不带就被吃掉（同上面
+     .v2-root 锁直角那一段的原因）。上面两个 span 没有工具类，不需要。 */
+  .v2-live-status {
+    display: none !important;
+  }
+}
+
+/* ── 表格 ──────────────────────────────────────────────────────────── */
+.v2-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.v2-table th {
+  position: sticky;
+  top: var(--t-masthead-h);
+  z-index: 20;
+  padding: 7px 14px;
+  border-bottom: 1px solid rgb(var(--t-rule-2));
+  background: rgb(var(--t-bg));
+  text-align: left;
+  white-space: nowrap;
+}
+
+.v2-row {
+  border-bottom: 1px solid rgb(var(--t-rule));
+  transition: background-color 0.1s linear;
+}
+
+/* 斑马纹：来自连续纸打印的传统，也是远距离横向追踪的唯一抓手。
+   不用每行加边框那套。 */
+.v2-row:nth-child(even) {
+  background: rgb(var(--t-bg-alt));
+}
+
+.v2-row:hover {
+  background: rgb(var(--t-hover));
+}
+
+.v2-row td {
+  padding: 9px 14px;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 列宽写在 th 上（table-layout: fixed 取首行宽度），摘要列吃掉剩余宽度 */
+.v2-c-status {
+  width: 78px;
+}
+
+.v2-c-system {
+  width: 136px;
+}
+
+.v2-c-type {
+  width: 124px;
+}
+
+.v2-c-key {
+  width: 238px;
+}
+
+.v2-c-actions {
+  width: 164px;
+}
+
+/* ── 骨架行 ────────────────────────────────────────────────────────── */
+.v2-skel {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--t-fg) / 0.05),
+    rgb(var(--t-fg) / 0.12),
+    rgb(var(--t-fg) / 0.05)
+  );
+  background-size: 200% 100%;
+  height: 9px;
+}
+
+/* ── 表单 ──────────────────────────────────────────────────────────── */
+.v2-field {
+  width: 100%;
+  border: 1px solid rgb(var(--t-rule-2));
+  background: rgb(var(--t-bg));
+  padding: 9px 10px;
+  font-family: var(--t-mono);
+  font-size: 13px;
+  color: rgb(var(--t-fg));
+}
+
+.v2-field::placeholder {
+  color: rgb(var(--t-fg-mute));
+}
+
+.v2-field:focus {
+  border-color: rgb(var(--t-amber));
+  outline: none;
+}
+
+.v2-btn {
+  border: 1px solid rgb(var(--t-rule-2));
+  padding: 9px 18px;
+  font-family: var(--t-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--t-fg-dim));
+  transition:
+    background-color 0.12s linear,
+    color 0.12s linear,
+    border-color 0.12s linear;
+}
+
+.v2-btn:hover {
+  background: rgb(var(--t-hover));
+  color: rgb(var(--t-fg));
+}
+
+.v2-btn-primary {
+  border-color: rgb(var(--t-amber));
+  background: rgb(var(--t-amber));
+  color: rgb(var(--t-bg));
+  font-weight: 600;
+}
+
+.v2-btn-primary:hover {
+  background: rgb(var(--t-amber) / 0.86);
+  color: rgb(var(--t-bg));
+}
+
+/* ── 条件选择器 ────────────────────────────────────────────────────── */
+/* 组别和频率用它替代原生 <select>：选项全可见，一次点击。 */
+.v2-chip {
+  border: 1px solid rgb(var(--t-rule-2));
+  padding: 5px 12px;
+  font-family: var(--t-mono);
+  font-size: 11.5px;
+  color: rgb(var(--t-fg-dim));
+  transition:
+    background-color 0.1s linear,
+    border-color 0.1s linear,
+    color 0.1s linear;
+}
+
+.v2-chip:hover {
+  background: rgb(var(--t-hover));
+  color: rgb(var(--t-fg));
+}
+
+/* 选中 = 面板上亮起的琥珀块 */
+.v2-chip[aria-pressed='true'],
+.v2-chip[aria-pressed='true']:hover {
+  border-color: rgb(var(--t-amber));
+  background: rgb(var(--t-amber));
+  color: rgb(var(--t-bg));
+  font-weight: 600;
+}
+
+/* ── 条件编辑器浮层 ───────────────────────────────────────────────── */
+/* 锚在 masthead 条件按钮下方，父级是 relative 的包裹层。
+   按钮已经挪到 header 右端（紧挨图标组），所以浮层改挂右边：挂左边的话
+   460px 宽的浮层会从按钮左沿往右铺，直接冲出视口右缘。 */
+.v2-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 460px;
+  max-width: calc(100vw - 40px);
+  border: 1px solid rgb(var(--t-rule-2));
+  background: rgb(var(--t-bg));
+  box-shadow: var(--t-elev);
+  outline: none;
+}
+
+/* ── 滚动条 ────────────────────────────────────────────────────────── */
+.v2-root {
+  scrollbar-color: rgb(var(--t-rule-2)) transparent;
+}
+
+/* ── 报告弹窗 ──────────────────────────────────────────────────────── */
+/* 开合动画复用 index.css 的 .report-dialog；这里只换表面和 markdown。 */
+.v2-report {
+  box-shadow: var(--t-elev);
+}
+
+/*
+  加 dialog. 前缀抬高权重。裸的 .v2-report::backdrop 和 index.css 里的
+  .report-dialog::backdrop 权重相同，而 index.css 排得更后，会被吃掉。
+*/
+dialog.v2-report::backdrop {
+  background: rgb(8 10 14 / 0.62);
+}
+
+.v2-report-md {
+  font-size: 13px;
+  line-height: 1.72;
+  color: rgb(var(--t-fg-dim));
+}
+
+.v2-report-md > :first-child {
+  margin-top: 0;
+}
+
+.v2-report-md > :last-child {
+  margin-bottom: 0;
+}
+
+.v2-report-md h1,
+.v2-report-md h2,
+.v2-report-md h3,
+.v2-report-md h4 {
+  margin: 1.5em 0 0.55em;
+  color: rgb(var(--t-fg));
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.v2-report-md h1 {
+  font-size: 1.4em;
+}
+
+.v2-report-md h2 {
+  font-size: 1.2em;
+}
+
+.v2-report-md h3 {
+  font-size: 1.06em;
+}
+
+.v2-report-md h4 {
+  font-size: 1em;
+}
+
+.v2-report-md h2,
+.v2-report-md h3 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid rgb(var(--t-rule));
+}
+
+.v2-report-md p {
+  margin: 0.8em 0;
+}
+
+.v2-report-md strong {
+  color: rgb(var(--t-fg));
+  font-weight: 600;
+}
+
+.v2-report-md a {
+  color: rgb(var(--t-amber));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.v2-report-md ul,
+.v2-report-md ol {
+  margin: 0.8em 0;
+  padding-left: 1.5em;
+}
+
+.v2-report-md ul {
+  list-style: disc;
+}
+
+.v2-report-md ol {
+  list-style: decimal;
+}
+
+.v2-report-md li {
+  margin: 0.3em 0;
+}
+
+.v2-report-md li::marker {
+  color: rgb(var(--t-fg-mute));
+}
+
+.v2-report-md code {
+  padding: 0.12em 0.38em;
+  border: 1px solid rgb(var(--t-rule));
+  background: rgb(var(--t-bg-alt));
+  color: rgb(var(--t-fg));
+  font-family: var(--t-mono);
+  font-size: 0.88em;
+}
+
+.v2-report-md pre {
+  margin: 1em 0;
+  padding: 0.85em 1em;
+  overflow-x: auto;
+  border: 1px solid rgb(var(--t-rule));
+  background: rgb(var(--t-bg-alt));
+}
+
+.v2-report-md pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.85em;
+}
+
+.v2-report-md blockquote {
+  margin: 1em 0;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 2px solid rgb(var(--t-amber));
+}
+
+.v2-report-md hr {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid rgb(var(--t-rule));
+}
+
+.v2-report-md table {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.v2-report-md th,
+.v2-report-md td {
+  padding: 0.45em 0.7em;
+  border: 1px solid rgb(var(--t-rule));
+  text-align: left;
+}
+
+.v2-report-md th {
+  background: rgb(var(--t-bg-alt));
+  color: rgb(var(--t-fg));
+  font-weight: 600;
+}
