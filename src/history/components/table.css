@@ -1,0 +1,145 @@
+/* ─────────────────────────────────────────────────────────────────────
+   历史数据 · 数据表格（模式一 / 模式二共用）
+
+   需求：模式二的表格风格要和模式一一致 —— 所以表格样式从 mode1.css 抽出来，
+   由 DataTable 统一引入，两个模式看到的是同一份外观（Element 风格：
+   浅灰表头、1px 网格线、表头吸顶、超长单行省略）。
+
+   颜色用 `.aa-scope` 上的 `--aa-*` 变量（两个模式的根节点都带这个类）。
+   ───────────────────────────────────────────────────────────────────── */
+
+.aa-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border-top: 1px solid var(--aa-border);
+  border-left: 1px solid var(--aa-border);
+  border-radius: 2px;
+}
+
+/* 高度由内容决定 —— 重复性分析表要按分组纵向合并单元格，不能被截断 */
+.aa-table-wrap.is-auto {
+  max-height: none;
+}
+
+/* 固定高度（不是 max-height）：行多行少都一样高，超出在容器内滚动、表头吸顶。
+   **只有模式一的「AI处置」那张表用**（见 NestedGroups）；
+   其余表格（P3 / 人工关单 / 自动化关单 / 模式二）仍走上面的 max-height，行少时会收缩。 */
+.aa-table-wrap.is-fixed {
+  height: 420px;
+  max-height: none;
+}
+
+.aa-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 12.5px;
+}
+
+.aa-dup-table {
+  min-width: 1070px;
+}
+
+.aa-table th,
+.aa-table td {
+  border-right: 1px solid var(--aa-border);
+  border-bottom: 1px solid var(--aa-border);
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.aa-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--aa-head-bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aa-text-3);
+  white-space: nowrap;
+}
+
+.aa-table td {
+  background: var(--aa-card);
+  color: var(--aa-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aa-dup-table td {
+  white-space: normal;
+  vertical-align: top;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.aa-table tbody tr:hover td {
+  background: var(--aa-hover);
+}
+
+.aa-table th.is-center,
+.aa-table td.is-center {
+  text-align: center;
+}
+
+.aa-cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ⚠️ 双类名：`.aa-table td` 已经设了背景，同权重的单类名盖不过它（元素选择器
+   那一位让 `.aa-table td` 更高），所以这里必须写 `.aa-dup-table .aa-dup__explain`。 */
+.aa-dup-table .aa-dup__explain {
+  background: var(--aa-head-bg);
+  color: var(--aa-text-2);
+}
+
+.aa-table__link {
+  color: var(--aa-primary);
+  text-decoration: none;
+}
+
+.aa-table__link:hover {
+  color: var(--aa-primary-hover);
+  text-decoration: underline;
+}
+
+/* 表格里的文字按钮（使用到的智能体 / 告警详情 / 查看简报 / 报告 / 详情） */
+.aa-text-btn {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--aa-primary);
+  cursor: pointer;
+}
+
+.aa-text-btn:hover:not(:disabled) {
+  color: var(--aa-primary-hover);
+  text-decoration: underline;
+}
+
+.aa-text-btn:disabled {
+  color: var(--aa-placeholder);
+  cursor: not-allowed;
+}
+
+.aa-table__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 0 22px;
+  font-size: 13px;
+  color: var(--aa-text-3);
+}
+
+.aa-table__empty-icon {
+  font-size: 26px;
+  color: var(--aa-placeholder);
+}

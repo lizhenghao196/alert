@@ -1,0 +1,97 @@
+/* ─────────────────────────────────────────────────────────────────────
+   历史数据 · 模式二
+
+   查询工具栏在 history-header 里与模式一共用（HistorySearchBar + search-bar.css），
+   表格与模式一共用同一套样式（DataTable + table.css），所以这里只剩页面外壳：
+   底色、表格高度、查询 loading、错误条、空态、模拟数据说明。
+
+   也就是说模式二**已经不再依赖实时观测页那套终端样式**（v2.css / V2Table）了。
+   颜色用 `--aa-*` 变量，那组变量挂在最外层 `.history-root` 的 `.aa-scope` 上。
+   ───────────────────────────────────────────────────────────────────── */
+
+.hist2-root {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--aa-bg);
+  padding: 16px 20px 20px;
+  color: var(--aa-text);
+}
+
+/* ── 表格高度 ───────────────────────────────────────────────────────
+   模式二的表格是本页唯一主体，共用表格默认的 420px 太矮（下面会空一大片）。
+   高度由 HistoryMode2 **从视口往下实测**后通过 maxHeight 传进来。
+
+   这里**故意不给 `flex: 1`**：`.hist2-body` 按内容收缩，
+   让「表格 → 分页条 → 模拟数据标签」贴在一起。
+   ⚠️ 之前给过 `flex: 1`，结果是：结果只有十几行时 body 被撑满，
+   标签被顶到视口最底部、中间空出一大片，看着像坏了
+   （注意这条链只有内容比视口**矮**时才是 definite，`flex:1` 才生效，
+   所以问题只在小数据量时出现，大数据量时看不出来）。
+
+   为什么不用 CSS 算高度（都试过了）：
+     - `calc(100dvh - 固定值)`：要自己数 header / padding / 错误条 / 分页条 / 底部标签，
+       数错就白留一片（之前留了 70px），窄屏 header 折行时还会溢出；
+     - `max-height: 100%`：祖先链是 `min-height:100dvh` + `flex:1`，容器高度
+       **indefinite**，Chromium 不认这种百分比 → 解析成 none，表格直接撑到内容全高；
+     - 量 `.hist2-body` 自己的高度：同理，它被内容撑开，量出来等于表格自身高度，
+       自我循环（实测稳定在错误的 900）。
+   实测法（视口高 - body.top - 下内边距 - body 之后的兄弟）没有这些问题。 */
+.hist2-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* ── 错误条 ───────────────────────────────────────────────────────── */
+.hist2-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--aa-danger-border);
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: var(--aa-danger-weak);
+  font-size: 12.5px;
+  color: var(--aa-danger);
+}
+
+.hist2-error .aa-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-color: currentColor;
+  background: transparent;
+  color: inherit;
+}
+
+.hist2-error .aa-btn:hover {
+  border-color: var(--aa-danger);
+  background: transparent;
+  color: var(--aa-danger);
+}
+
+/* ── 操作列里的两个入口 ───────────────────────────────────────────── */
+.hist2-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hist2-actions__none {
+  color: var(--aa-placeholder);
+}
+
+/* ── 底部「模拟数据」说明 ─────────────────────────────────────────── */
+.hist2-simulated {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 12px;
+  border: 1px solid var(--aa-border-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--aa-text-3);
+}

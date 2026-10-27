@@ -239,6 +239,13 @@
   position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+/* 「历史数据」入口：与「修改条件」同形，只是它是个链接。
+   去掉链接默认的下划线与颜色，形状/悬停完全沿用 .v4-edit-condition。 */
+.v4-history-link {
+  text-decoration: none;
 }
 
 .v4-error {

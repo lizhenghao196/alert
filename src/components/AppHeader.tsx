@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
-import { Activity, Radar, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
+import { Activity, History, Radar, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import VersionNav from './VersionNav'
+import { HISTORY_HREF } from '../version'
 import { frequencyLabel, type FilterStatus, type Selection } from '../types'
 import type { Theme } from '../theme'
 
@@ -149,6 +150,19 @@ function AppHeader({
               <SlidersHorizontal size={14} strokeWidth={2} />
               修改条件
             </button>
+            {/* 「历史数据」紧挨「修改条件」右侧：新标签页打开独立的历史数据页
+                （页内再分模式一 / 模式二）。用真实 <a href> 而不是 window.open，
+                这样中键新开、右键复制链接都能用，也不受弹窗拦截影响。 */}
+            <a
+              className="v4-edit-condition v4-history-link"
+              href={HISTORY_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="在新标签页打开历史数据"
+            >
+              <History size={14} strokeWidth={2} />
+              历史数据
+            </a>
             {editor}
           </div>
         </section>
