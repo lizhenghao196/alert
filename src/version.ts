@@ -62,6 +62,13 @@ export function versionHref(meta: VersionMeta): string {
 export const HISTORY_HREF = `${import.meta.env.BASE_URL}history/`
 
 /**
+ * 「问题登记」外链（新标签页打开）。
+ * km 是行内知识库的内网域名（没有公网后缀），所以这里写死绝对地址，
+ * 不跟 BASE_URL 走——它跟本站的部署路径没有任何关系。
+ */
+export const PROBLEM_HREF = 'http://km/pages/viewpage.action?pageId=149705288'
+
+/**
  * 站点根路径（不带版本前缀）。
  *
  * 根路径按 resolveVersion 的兜底落地到模式一（v4 = 告警实时观测页），

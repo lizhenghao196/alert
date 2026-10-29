@@ -1,8 +1,16 @@
 import type { ReactNode } from 'react'
-import { Activity, History, Radar, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
+import {
+  Activity,
+  FilePlus2,
+  History,
+  Radar,
+  SlidersHorizontal,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import VersionNav from './VersionNav'
-import { HISTORY_HREF } from '../version'
+import { HISTORY_HREF, PROBLEM_HREF } from '../version'
 import { frequencyLabel, type FilterStatus, type Selection } from '../types'
 import type { Theme } from '../theme'
 
@@ -154,7 +162,7 @@ function AppHeader({
                 （页内再分模式一 / 模式二）。用真实 <a href> 而不是 window.open，
                 这样中键新开、右键复制链接都能用，也不受弹窗拦截影响。 */}
             <a
-              className="v4-edit-condition v4-history-link"
+              className="v4-edit-condition v4-header-link"
               href={HISTORY_HREF}
               target="_blank"
               rel="noopener noreferrer"
@@ -162,6 +170,17 @@ function AppHeader({
             >
               <History size={14} strokeWidth={2} />
               历史数据
+            </a>
+            {/* 「问题登记」指向行内知识库的登记页，同样是真实 <a> 新标签页打开 */}
+            <a
+              className="v4-edit-condition v4-header-link"
+              href={PROBLEM_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="在新标签页打开问题登记"
+            >
+              <FilePlus2 size={14} strokeWidth={2} />
+              问题登记
             </a>
             {editor}
           </div>
