@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { queryOngoingAlerts } from '../api'
+import { ApiError, queryOngoingAlerts } from '../api'
 import { loadSelection, saveSelection } from '../storage'
 import type { Alert, Selection } from '../types'
 
@@ -32,6 +32,12 @@ export type AlertPolling = {
   openEditor: () => void
   closeEditor: () => void
   retry: () => void
+  /**
+   * 立即重查一次，不重置观测条件、不清空当前结果。
+   * 关闭告警提交成功后用它刷新，避免走 retry 那条「先清空再重来」的路
+   * （那条路会把 queried 打回 false，屏幕会闪一下骨架屏）。
+   */
+  refresh: () => void
 }
 
 /**
@@ -93,10 +99,17 @@ export function useAlertPolling(): AlertPolling {
         setSimulated(result.simulated)
         setLastUpdated(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
         setRefreshTick((tick) => tick + 1)
-      } catch {
+      } catch (error) {
         if (generation !== pollGeneration.current) return
+        // 超时 / 接口自己报的错 / 网络层错误，三种要说清楚，别一律"请检查服务连接"：
+        // 之前接口明明有返回、只是字段格式不符，界面上也是一句"查询失败"，
+        // 排查时完全看不出是前端把数据判死了。
         setError(
-          controller.signal.aborted ? '查询超时，请稍后重试。' : '查询失败，请检查服务连接。',
+          controller.signal.aborted
+            ? '查询超时，请稍后重试。'
+            : error instanceof ApiError
+              ? error.message
+              : '查询失败，请检查服务连接。',
         )
       } finally {
         if (generation === pollGeneration.current) {
@@ -151,6 +164,35 @@ export function useAlertPolling(): AlertPolling {
     if (applied) confirm(applied)
   }, [applied, confirm])
 
+  /**
+   * 立即重查（关闭告警成功后调用）。
+   *
+   * 定时器这里有两个坑，都在这一步处理掉：
+   * 1. 已经排队的那次轮询必须先 clearTimeout，否则它会在几秒后照常触发，
+   *    变成「刚刷完又刷一次」，甚至和这次请求并发跑出两个定时器链；
+   * 2. 在途请求要先作废（generation +1 再 abort），否则旧请求晚到会把
+   *    刚关掉的那条告警又盖回列表里。
+   *
+   * 因为先把 generation 推进了，旧请求在 catch/finally 里的分支都会判定为
+   * 过期而直接返回，不会再去 setLoading 或续定时器；新的一轮由这里重新起。
+   */
+  const refresh = useCallback(() => {
+    if (!applied) return
+    pollGeneration.current += 1
+    if (pollTimer.current !== null) {
+      window.clearTimeout(pollTimer.current)
+      pollTimer.current = null
+    }
+    if (requestTimer.current !== null) {
+      window.clearTimeout(requestTimer.current)
+      requestTimer.current = null
+    }
+    if (abortRef.current) abortRef.current.abort()
+    // 单次查询（frequency 0）此时不该被「重查」重新拉起持续观测，这里按原条件还原
+    setRunning(applied.frequency > 0)
+    pollOnce(pollGeneration.current, applied, applied.frequency > 0)
+  }, [applied, pollOnce])
+
   // 首次进入时，若缓存里有观测条件就自动恢复轮询
   useEffect(() => {
     if (showForm || !applied) return
@@ -183,5 +225,6 @@ export function useAlertPolling(): AlertPolling {
     openEditor,
     closeEditor,
     retry,
+    refresh,
   }
 }

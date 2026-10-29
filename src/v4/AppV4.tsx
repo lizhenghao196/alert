@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
 import AppHeader from '../components/AppHeader'
 import LaunchCard from '../components/LaunchCard'
@@ -7,10 +7,16 @@ import { useAlertPolling } from '../hooks/useAlertPolling'
 import { useTheme } from '../theme'
 import { type Alert, type FilterStatus, type Selection } from '../types'
 import V4Body, { V4BodySkeleton } from './components/V4Body'
+import V4CloseAlertDialog from './components/V4CloseAlertDialog'
+import V4Toast from './components/V4Toast'
+import type { ToastTone } from './components/V4Toast'
 import { useV4AlertSound } from './useV4AlertSound'
 import './v4.css'
 
 const DEFAULT_FREQUENCY = 30
+
+/** 关单成功提示停留时长 */
+const TOAST_MS = 3000
 
 function AppV4() {
   const [theme, toggleTheme] = useTheme()
@@ -24,6 +30,44 @@ function AppV4() {
 
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [report, setReport] = useState<Alert | null>(null)
+  /** 正在关单的告警；null 表示弹窗关闭 */
+  const [closing, setClosing] = useState<Alert | null>(null)
+  const [toast, setToast] = useState<{ message: string; tone: ToastTone } | null>(null)
+  const toastTimer = useRef<number | null>(null)
+  /** 请求回来但弹窗还在播退场动画，文案先存这儿，等弹窗关完再弹 */
+  const pendingToast = useRef<{ message: string; tone: ToastTone } | null>(null)
+
+  useEffect(
+    () => () => {
+      if (toastTimer.current !== null) window.clearTimeout(toastTimer.current)
+    },
+    [],
+  )
+
+  const showToast = (next: { message: string; tone: ToastTone }) => {
+    setToast(next)
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), TOAST_MS)
+  }
+
+  /**
+   * 关单请求回来：记下后端文案和成功与否，立刻重查一次。
+   * 走 refresh 而不是 retry —— retry 会先清空结果、把 queried 打回 false，
+   * 屏幕上会闪一下骨架屏；refresh 保留当前列表，只把定时器重新起一遍。
+   */
+  const handleSubmitted = (_row: Alert, message: string, ok: boolean) => {
+    pendingToast.current = { message, tone: ok ? 'success' : 'warning' }
+    poll.refresh()
+  }
+
+  /** 弹窗关完（退场动画结束）再弹提示，否则会被 dialog 的遮罩压住 */
+  const handleDialogClosed = () => {
+    setClosing(null)
+    if (pendingToast.current) {
+      showToast(pendingToast.current)
+      pendingToast.current = null
+    }
+  }
 
   const abnormal = useMemo(() => poll.rows.filter((row) => row.code === 1), [poll.rows])
   const normal = useMemo(() => poll.rows.filter((row) => row.code !== 1), [poll.rows])
@@ -98,6 +142,7 @@ function AppV4() {
               filter={filter}
               loading={poll.loading}
               onOpenReport={setReport}
+              onCloseAlert={setClosing}
             />
           ) : null}
 
@@ -106,6 +151,12 @@ function AppV4() {
       )}
 
       <ReportDialog row={report} onClose={() => setReport(null)} />
+      <V4CloseAlertDialog
+        row={closing}
+        onClose={handleDialogClosed}
+        onSubmitted={handleSubmitted}
+      />
+      <V4Toast message={toast?.message ?? ''} tone={toast?.tone ?? 'success'} />
     </div>
   )
 }

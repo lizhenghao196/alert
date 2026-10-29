@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Clock, ExternalLink, FileText, ShieldCheck, UserRound } from 'lucide-react'
+import { ChevronDown, Clock, ExternalLink, FileText, ShieldCheck, UserRound, X } from 'lucide-react'
 import SummaryTooltip from '../../components/SummaryTooltip'
 import { safeHref } from '../../url'
 import type { Alert, FilterStatus } from '../../types'
@@ -10,6 +10,7 @@ type Props = {
   filter: FilterStatus
   loading: boolean
   onOpenReport: (row: Alert) => void
+  onCloseAlert: (row: Alert) => void
 }
 
 type AlertWithEventUrl = Alert & { event_url?: string }
@@ -80,14 +81,19 @@ function CardLinks({ row, onOpenReport }: { row: Alert; onOpenReport: () => void
   )
 }
 
-function V4Body({ abnormal, normal, filter, loading, onOpenReport }: Props) {
+function V4Body({ abnormal, normal, filter, loading, onOpenReport, onCloseAlert }: Props) {
   const [expandedNormalKey, setExpandedNormalKey] = useState<string | null>(null)
   const density = abnormal.length <= 2 ? 'detail' : abnormal.length >= 6 ? 'compact' : 'standard'
 
   if (filter === 'abnormal') {
     return (
       <div className="v4-workspace is-single">
-        <AbnormalSection rows={abnormal} density={density} onOpenReport={onOpenReport} />
+        <AbnormalSection
+          rows={abnormal}
+          density={density}
+          onOpenReport={onOpenReport}
+          onCloseAlert={onCloseAlert}
+        />
       </div>
     )
   }
@@ -107,7 +113,12 @@ function V4Body({ abnormal, normal, filter, loading, onOpenReport }: Props) {
 
   return (
     <div className={`v4-workspace is-split${loading ? ' is-refreshing' : ''}`}>
-      <AbnormalSection rows={abnormal} density={density} onOpenReport={onOpenReport} />
+      <AbnormalSection
+        rows={abnormal}
+        density={density}
+        onOpenReport={onOpenReport}
+        onCloseAlert={onCloseAlert}
+      />
       <NormalSection
         rows={normal}
         expandedKey={expandedNormalKey}
@@ -122,10 +133,12 @@ function AbnormalSection({
   rows,
   density,
   onOpenReport,
+  onCloseAlert,
 }: {
   rows: Alert[]
   density: 'detail' | 'standard' | 'compact'
   onOpenReport: (row: Alert) => void
+  onCloseAlert: (row: Alert) => void
 }) {
   return (
     <section className="v4-abnormal-section">
@@ -138,6 +151,7 @@ function AbnormalSection({
               row={row}
               density={density}
               onOpenReport={() => onOpenReport(row)}
+              onCloseAlert={() => onCloseAlert(row)}
             />
           ))}
         </div>
@@ -152,10 +166,12 @@ function AbnormalCard({
   row,
   density,
   onOpenReport,
+  onCloseAlert,
 }: {
   row: Alert
   density: 'detail' | 'standard' | 'compact'
   onOpenReport: () => void
+  onCloseAlert: () => void
 }) {
   const clamp = density === 'detail' ? 'line-clamp-4' : density === 'compact' ? 'line-clamp-2' : 'line-clamp-3'
 
@@ -165,12 +181,25 @@ function AbnormalCard({
         {/* 系统名一行省略（见 .v4-card-head h3 的 nowrap + ellipsis），
             超长时靠 title 悬浮看全，跟旁边的类型徽标同一套做法 */}
         <h3 title={row.systemId || '未标注系统'}>{row.systemId || '未标注系统'}</h3>
-        {/* 徽标最宽 148px，超了省略。title 兜住完整值，悬浮就能看全 */}
-        {row.type ? (
-          <span className="v4-progress-chip" title={row.type}>
-            {row.type}
-          </span>
-        ) : null}
+        {/* 徽标和叉号成组贴右：不再被 space-between 甩到卡片中间，
+            两者各自超长时都走省略号（见 .v4-card-head-right 的宽度上限） */}
+        <div className="v4-card-head-right">
+          {row.type ? (
+            <span className="v4-progress-chip" title={row.type}>
+              {row.type}
+            </span>
+          ) : null}
+          {/* 关闭告警：右上角的叉号，负外边距让它更贴卡片右边缘 */}
+          <button
+            type="button"
+            className="v4-card-close"
+            aria-label="关闭告警"
+            title="关闭告警"
+            onClick={onCloseAlert}
+          >
+            <X size={13} strokeWidth={2.4} />
+          </button>
+        </div>
       </div>
 
       {/* 告警单号 + 告警时间同一行：单号占剩余宽度、超长省略，时间贴右不换行 */}

@@ -274,6 +274,55 @@
   padding: 4px 9px;
 }
 
+/* 关单成功提示：对齐 ElementUI $message 的观感——顶部居中、白底、绿色对勾，
+   几秒后自动消失（计时器在 AppV4 里）。用 fixed 是因为它是全局反馈，
+   不该跟着内容区的滚动和宽度走。 */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.v4-toast {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  z-index: 60;
+  display: flex;
+  max-width: min(560px, calc(100vw - 32px));
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(var(--c-normal) / 0.32);
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: rgb(var(--c-panel));
+  box-shadow: var(--shadow-lift);
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgb(var(--c-fg));
+  animation: toastIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.v4-toast svg {
+  flex: none;
+  color: rgb(var(--c-normal));
+}
+
+/* 业务失败（code !== 0）：换成琥珀色，别再用绿勾冒充成功 */
+.v4-toast.is-warning {
+  border-color: rgb(var(--c-warn) / 0.4);
+}
+
+.v4-toast.is-warning svg {
+  color: rgb(var(--c-warn));
+}
+
 .v4-workspace {
   display: grid;
   gap: 12px;
@@ -391,14 +440,23 @@
   transform: translateY(-1px);
 }
 
+/* 卡片头一行：系统名（可省略） + 右侧一组（类型徽标 + 关闭叉号）。
+   原来三个元素平铺 + space-between，徽标会被甩到卡片中间、离叉号很远，
+   现在把徽标和叉号包成一组贴右，标题吃掉剩余宽度。 */
 .v4-card-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
+/* flex: 1 1 0 + min-width: 0 缺一不可：
+   不写 min-width: 0，flex 项的 min-width: auto 会按内容撑住，省略号不生效；
+   basis 用 0 而不是 auto——用 auto 时标题的基准宽度是整串文字，收缩按基准
+   比例分配，长标题会被长徽标一起拖到只剩几个字。basis 0 让标题直接吃掉
+   右侧组之外的剩余宽度，和徽标长度无关。 */
 .v4-card-head h3 {
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   font-size: 15px;
   font-weight: 650;
@@ -406,7 +464,20 @@
   white-space: nowrap;
 }
 
+/* 右侧一组：徽标 + 叉号。max-width 55% 是给「标题和徽标同时超长」兜底的——
+   不设上限的话徽标最长能占 148px，窄卡片里标题会被压到只剩几个字；
+   设了上限，标题至少能拿到 45%，两边都还剩得下省略号。 */
+.v4-card-head-right {
+  display: flex;
+  flex: none;
+  max-width: 55%;
+  align-items: center;
+  gap: 6px;
+}
+
 .v4-progress-chip {
+  min-width: 0;
+  flex: 0 1 auto;
   max-width: 148px;
   overflow: hidden;
   border-radius: 999px;
@@ -543,6 +614,78 @@
 .v4-card-actions button:hover,
 .v4-card-actions a:hover {
   color: rgb(var(--c-accent));
+}
+
+/* 关闭告警：卡片右上角的叉号。
+   负外边距抵掉卡片 13px 的内边距，视觉上贴着卡片右上角；
+   它仍在 head 行里正常占位（flex: none），不会盖住右边的类型徽标。
+   悬停用异常色：这是从列表里撤掉这条告警的动作，跟卡片的红色语义一致。 */
+.v4-card-close {
+  display: grid;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  /* 右侧负外边距让叉号再往卡片边缘贴 4px；竖向交给所在组的 align-items: center */
+  margin: 0 -4px 0 0;
+  place-items: center;
+  border-radius: 6px;
+  color: rgb(var(--c-fg-3));
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.v4-card-close:hover {
+  background: rgb(var(--c-abnormal) / 0.12);
+  color: rgb(var(--c-abnormal));
+}
+
+.v4-card-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--c-abnormal) / 0.35);
+}
+
+/* 下拉面板：白底浮层叠在白底表单上，光靠 1px 描边分不开层次，
+   补一层偏紧的投影（比 shadow-lift 更实一点，但不至于像弹窗那样发黑）。
+   高度卡成整行数（6 行 × 32px + 上下各 4px 内边距 = 200px），
+   否则底部会露出被切一半的选项，看着像渲染坏了。 */
+.v4-select-panel {
+  box-shadow:
+    0 10px 24px rgb(16 24 40 / 0.1),
+    0 2px 6px rgb(16 24 40 / 0.06);
+}
+
+/* 细滚动条：选项多到要滚时，靠它提示"下面还有"。
+   这里故意不写标准的 scrollbar-width/scrollbar-color——在 Chromium 里它们
+   会让滚动条变回「滚动时才浮现」的浮层，常驻的细条反而没了。 */
+.v4-select-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.v4-select-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--c-line-2));
+  background-clip: content-box;
+}
+
+.v4-select-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 面板底部的渐隐：内容没滚到底时盖一层。
+   面板高度故意留出半行（6 行 + 16px），那半行被这层渐变吃掉，看上去是
+   "下面还有"的暗示，而不是一行字被硬生生切断。滚动条在这个环境是浮层式的，
+   不滚就不出现，光靠它提示没人看得见。 */
+.v4-select-fade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 26px;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(rgb(var(--c-panel) / 0), rgb(var(--c-panel)) 70%);
+  pointer-events: none;
 }
 
 .v4-normal-section {

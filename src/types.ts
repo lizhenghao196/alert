@@ -22,6 +22,11 @@ export type Alert = {
    * 同样是待后端上线的新字段，可选。
    */
   assignee?: string
+  /**
+   * 告警原因描述。接口可能带回来（之前已经关过单、或事件里带了原因），
+   * 有值就用来预填关单弹窗里的「告警原因描述」，没有就留空让用户自己写。
+   */
+  reason?: string
 }
 
 export type Selection = {
@@ -57,20 +62,8 @@ export function frequencyLabel(value: number): string {
   return FREQUENCY_OPTIONS.find((opt) => opt.value === value)?.label ?? `${value} 秒`
 }
 
-export function isAlert(value: unknown): value is Alert {
-  if (!value || typeof value !== 'object') return false
-  const row = value as Record<string, unknown>
-  return (
-    typeof row.alertKey === 'string' &&
-    typeof row.systemId === 'string' &&
-    typeof row.href === 'string' &&
-    typeof row.msg === 'string' &&
-    typeof row.summary === 'string' &&
-    typeof row.code === 'number' &&
-    Number.isInteger(row.code) &&
-    (row.type === undefined || typeof row.type === 'string') &&
-    (row.event_url === undefined || typeof row.event_url === 'string') &&
-    (row.alertTime === undefined || typeof row.alertTime === 'string') &&
-    (row.assignee === undefined || typeof row.assignee === 'string')
-  )
-}
+/*
+ * 这里原本还有一个 isAlert() 守卫，和 api.ts 里的字段校验是两份重复实现。
+ * 两份规则各改各的，正是「接口明明有返回、前端却判定格式异常」的温床，
+ * 已经删掉：字段校验 + 归一化统一放在 api.ts 的 normalizeAlert 里。
+ */
